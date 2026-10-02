@@ -5,7 +5,7 @@
 // <prefix>/items/<user id>/<plaid item id>.
 
 import { PLAID_PARAM_PREFIX } from "../lib/plaid";
-import { deleteSecret, getSecret, putSecret } from "../lib/secrets";
+import { deleteSecret, getSecret, putSecret } from "../lib/parameterStore";
 
 function tokenName(userId: string, itemId: string): string {
   return `${PLAID_PARAM_PREFIX}/items/${userId}/${itemId}`;

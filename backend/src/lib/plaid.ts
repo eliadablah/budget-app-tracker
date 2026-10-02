@@ -6,7 +6,7 @@
 // Which Plaid environment is used (sandbox = fake banks, production = real
 // ones) comes from the PLAID_ENV variable Terraform sets on the Lambda.
 
-import { getSecret } from "./secrets";
+import { getSecret } from "./parameterStore";
 
 const PLAID_ENV = process.env.PLAID_ENV ?? "sandbox";
 const PLAID_BASE_URL = `https://${PLAID_ENV}.plaid.com`;

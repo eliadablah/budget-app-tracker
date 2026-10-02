@@ -4,6 +4,13 @@ Newest date first.
 
 ## 2026-10-02
 
+### Ops - Fix first CI and deploy runs
+
+- The first pushed runs all failed, for two reasons:
+  - `backend/src/lib/secrets.ts` matched the `.gitignore` rule `secrets.*`, so it was never committed and the backend could not compile anywhere but locally. Renamed to `lib/parameterStore.ts` (imports updated); the ignore rule is left as is.
+  - The deploy role's trust condition used `repo:owner/name:ref:...`, but GitHub's OIDC subject for this repo carries permanent IDs (`repo:eliadablah@232940632/budget-app-tracker@1400730037:ref:refs/heads/main`, read from the denied `AssumeRoleWithWebIdentity` events in CloudTrail). Updated the `github_repository` default in `infra/github_oidc.tf` to that form.
+- Verification: backend `tsc` passes; `terraform apply` run (0 added, 1 changed, 0 destroyed).
+
 ### Ops - Alarms, email alerts, and a health dashboard
 
 - Added `infra/monitoring.tf`: SNS topic `budget-app-dev-alerts` with an email subscription (address from the new `alert_email` variable, set in gitignored `infra/terraform.tfvars`).
@@ -37,7 +44,7 @@ Newest date first.
 
 ### Bank - Plaid Sandbox connection and account balances
 
-- Backend: new `src/bank/` (`createLinkToken`, `connectBank`, `listBankAccounts`, `removeBank`, `bankTokenStore`, `validateBank`), `lib/plaid.ts` (calls Plaid's REST API with `fetch`, no SDK), `lib/secrets.ts` (Parameter Store). Added `@aws-sdk/client-ssm`.
+- Backend: new `src/bank/` (`createLinkToken`, `connectBank`, `listBankAccounts`, `removeBank`, `bankTokenStore`, `validateBank`), `lib/plaid.ts` (calls Plaid's REST API with `fetch`, no SDK), `lib/secrets.ts` (Parameter Store; later renamed `lib/parameterStore.ts`). Added `@aws-sdk/client-ssm`.
 - Secrets: the Plaid client ID and secret are read at runtime from Parameter Store (`/budget-app/dev/plaid/client-id`, `/secret`), set by hand with `aws ssm put-parameter` - they never pass through Terraform or its state. Each connected bank's access token is stored as its own `SecureString` under `/budget-app/dev/plaid/items/<user>/<item>`; DynamoDB holds only the connection record (`sk = BANK#<item id>`, institution name).
 - Infra: four JWT-protected routes (`POST /bank/link-token`, `POST /bank/connections`, `GET /bank/accounts`, `DELETE /bank/connections/{id}`); `iam.tf` adds a policy limited to read on the two key parameters and read/write/delete on `items/*`; Lambda gets `PLAID_ENV` (new `plaid_env` variable, default `sandbox`) and `PLAID_PARAM_PREFIX`, timeout 10s -> 20s.
 - Frontend: `components/accounts/` (`AccountsCard`, `BankGroup`, `AccountRow`), `hooks/useBanks.ts`, `lib/plaidLink.ts` (loads Plaid Link on first use), `lib/formatMoney.ts`. The Accounts card replaces its placeholder, supports several banks, and a "Cash in accounts" tile totals checking and savings.

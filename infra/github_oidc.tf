@@ -9,10 +9,15 @@
 # that expire within the hour. Nothing long-lived exists to leak.
 # This is called OIDC (OpenID Connect).
 
+# GitHub identifies a repo on its ID card as "owner@<owner id>/name@<repo
+# id>". The numbers are permanent IDs: if this repo or account were ever
+# renamed or deleted, and someone else took the name, their ID card would
+# carry different numbers and be refused. (Found from the denied attempts in
+# CloudTrail - event AssumeRoleWithWebIdentity, field userIdentity.userName.)
 variable "github_repository" {
-  description = "The GitHub repo allowed to deploy, as owner/name."
+  description = "The GitHub repo allowed to deploy, in the form GitHub puts in its OIDC subject: owner@ownerId/name@repoId."
   type        = string
-  default     = "eliadablah/budget-app-tracker"
+  default     = "eliadablah@232940632/budget-app-tracker@1400730037"
 }
 
 # Registers GitHub as an identity AWS will accept ID cards from. One of
