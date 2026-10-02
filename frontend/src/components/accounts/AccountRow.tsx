@@ -1,6 +1,7 @@
 // src/components/accounts/AccountRow.tsx
-// What: one bank account on a line - its name, what kind of account it is,
-// the last digits of its number, and its balance.
+// What: one bank account as a tile - its name, what kind of account it is,
+// the last digits of its number, and its balance in big type. Tiles sit
+// side by side in a row (see .account-list in index.css).
 //
 // Props:
 //   account - the account to show
@@ -19,12 +20,10 @@ export function AccountRow({ account }: AccountRowProps) {
     .join(" ");
 
   return (
-    <li className="account-row">
-      <div className="account-row__text">
-        <span className="account-row__name">{account.name}</span>
-        <span className="account-row__details">{details}</span>
-      </div>
-      <span className="account-row__balance">{formatMoney(account.balance, account.currency)}</span>
+    <li className="account-tile">
+      <span className="account-tile__name">{account.name}</span>
+      <span className="account-tile__details">{details}</span>
+      <span className="account-tile__balance">{formatMoney(account.balance, account.currency)}</span>
     </li>
   );
 }

@@ -8,6 +8,7 @@ import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 }
 import { connectBank } from "./bank/connectBank";
 import { createLinkToken } from "./bank/createLinkToken";
 import { listBankAccounts } from "./bank/listBankAccounts";
+import { listBankTransactions } from "./bank/listBankTransactions";
 import { removeBank } from "./bank/removeBank";
 import { validateBankId, validateInstitutionName, validatePublicToken } from "./bank/validateBank";
 import { HttpError, json, noContent, parseJsonBody } from "./lib/http";
@@ -69,6 +70,10 @@ export async function handler(
 
       case "GET /bank/accounts": {
         return json(200, await listBankAccounts(userId));
+      }
+
+      case "GET /bank/transactions": {
+        return json(200, await listBankTransactions(userId));
       }
 
       case "DELETE /bank/connections/{id}": {

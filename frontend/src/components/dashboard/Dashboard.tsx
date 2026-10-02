@@ -1,6 +1,7 @@
 // src/components/dashboard/Dashboard.tsx
 // What: the one page you see after logging in - headline numbers on top,
-// then a card for each part of the app (bills, budget, to-dos, accounts).
+// then a card for each part of the app (bills, budget, to-dos, accounts,
+// transactions).
 // It arranges the sections and hands each one its data; the sections
 // themselves do the rendering.
 //
@@ -10,8 +11,10 @@
 
 import { useBanks } from "../../hooks/useBanks";
 import { useTodos } from "../../hooks/useTodos";
+import { useTransactions } from "../../hooks/useTransactions";
 import { logout } from "../../lib/auth";
 import { AccountsCard } from "../accounts/AccountsCard";
+import { TransactionsCard } from "../transactions/TransactionsCard";
 import { AppHeader } from "../layout/AppHeader";
 import { TodoCard } from "../todos/TodoCard";
 import { ComingSoonCard } from "./ComingSoonCard";
@@ -24,6 +27,7 @@ interface DashboardProps {
 export function Dashboard({ onSessionExpired }: DashboardProps) {
   const { todos, loading, error, addTodo, toggleTodo, removeTodo } = useTodos(onSessionExpired);
   const banks = useBanks(onSessionExpired);
+  const transactions = useTransactions(banks.banks.length, onSessionExpired);
 
   function handleLogout() {
     logout();
@@ -34,7 +38,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     <main className="dashboard">
       <AppHeader onLogout={handleLogout} />
 
-      <SummaryRow todos={todos} banks={banks.banks} />
+      <SummaryRow todos={todos} banks={banks.banks} transactions={transactions.transactions} />
 
       <div className="dashboard__grid">
         <ComingSoonCard
@@ -60,6 +64,12 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           error={banks.error}
           onConnect={banks.connectBank}
           onRemove={banks.removeBank}
+        />
+        <TransactionsCard
+          transactions={transactions.transactions}
+          loading={transactions.loading}
+          error={transactions.error}
+          hasBanks={banks.banks.length > 0}
         />
       </div>
     </main>

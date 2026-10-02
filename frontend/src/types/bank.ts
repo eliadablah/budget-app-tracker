@@ -12,6 +12,27 @@ export interface BankAccount {
   currency: string | null;
 }
 
+export interface BankTransaction {
+  id: string;
+  date: string; // "YYYY-MM-DD"
+  name: string;
+  // POSITIVE = money leaving the account, NEGATIVE = money coming in.
+  amount: number;
+  currency: string | null;
+  pending: boolean;
+  category: string | null;
+  // False for money in, transfers between your own accounts, and credit
+  // card payments - so "spent this month" doesn't count those.
+  countsAsSpending: boolean;
+  accountId: string;
+  institutionName: string;
+}
+
+export interface BankTransactionsResult {
+  transactions: BankTransaction[];
+  failedBanks: string[]; // banks whose transactions couldn't be loaded
+}
+
 export interface Bank {
   id: string;
   institutionName: string;

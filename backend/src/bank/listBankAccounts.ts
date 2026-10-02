@@ -1,12 +1,11 @@
 // src/bank/listBankAccounts.ts
 // What: returns every connected bank with its accounts and balances. Looks
-// up the user's connections in the table, then asks Plaid about each one.
+// up the user's connections, then asks Plaid about each one.
 
-import { QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb, TABLE_NAME } from "../lib/dynamodb";
 import { plaidRequest } from "../lib/plaid";
 import type { BankAccount, BankConnection, BankWithAccounts } from "../types/bank";
 import { getBankToken } from "./bankTokenStore";
+import { listBankConnections } from "./listBankConnections";
 
 interface PlaidAccount {
   account_id: string;
@@ -39,17 +38,7 @@ async function fetchAccounts(userId: string, connection: BankConnection): Promis
 }
 
 export async function listBankAccounts(userId: string): Promise<BankWithAccounts[]> {
-  const result = await ddb.send(
-    new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: "pk = :pk AND begins_with(sk, :prefix)",
-      ExpressionAttributeValues: {
-        ":pk": `USER#${userId}`,
-        ":prefix": "BANK#",
-      },
-    })
-  );
-  const connections = (result.Items ?? []) as BankConnection[];
+  const connections = await listBankConnections(userId);
 
   // All banks are asked at the same time, and one bank failing (say, its
   // login expired) must not hide the others - so each failure is caught

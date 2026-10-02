@@ -70,6 +70,7 @@ locals {
     "POST /bank/link-token",
     "POST /bank/connections",
     "GET /bank/accounts",
+    "GET /bank/transactions",
     "DELETE /bank/connections/{id}",
   ]
 }

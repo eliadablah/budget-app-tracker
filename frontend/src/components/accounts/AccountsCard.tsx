@@ -1,6 +1,7 @@
 // src/components/accounts/AccountsCard.tsx
 // What: the accounts section of the dashboard - every connected bank with
-// its accounts and balances, plus the button that connects another bank.
+// its accounts laid out side by side as tiles, plus the button that
+// connects another bank. Spans the full width of the dashboard.
 // Holds no data of its own; everything comes from the useBanks hook via
 // the dashboard.
 //
@@ -42,25 +43,29 @@ export function AccountsCard({
   }
 
   return (
-    <Card title="Accounts">
+    <Card
+      title="Accounts"
+      wide
+      aside={
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={onConnect}
+          disabled={connecting}
+        >
+          {connecting ? "Connecting…" : banks.length === 0 ? "Connect a bank" : "Connect another bank"}
+        </button>
+      }
+    >
       {error && <p className="error">{error}</p>}
 
       {loading ? (
         <p className="muted">Loading…</p>
       ) : banks.length === 0 ? (
-        <p className="empty-state">Connect a bank to see your balances here.</p>
+        <p className="muted">Connect a bank to see your balances here.</p>
       ) : (
         banks.map((bank) => <BankGroup key={bank.id} bank={bank} onRemove={handleRemove} />)
       )}
-
-      <button
-        type="button"
-        className="button button--primary button--block"
-        onClick={onConnect}
-        disabled={connecting}
-      >
-        {connecting ? "Connecting…" : banks.length === 0 ? "Connect a bank" : "Connect another bank"}
-      </button>
     </Card>
   );
 }

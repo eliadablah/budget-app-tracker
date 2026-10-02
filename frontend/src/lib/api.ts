@@ -4,7 +4,7 @@
 // anything without one with a 401, which callers can detect via
 // UnauthorizedError to send the user back to the login screen.
 
-import type { Bank } from "../types/bank";
+import type { Bank, BankTransactionsResult } from "../types/bank";
 import type { Todo } from "../types/todo";
 import { getIdToken, logout } from "./auth";
 
@@ -99,6 +99,11 @@ export async function connectBank(publicToken: string, institutionName: string):
 
 export async function getBanks(): Promise<Bank[]> {
   const res = await fetch(`${API_URL}/bank/accounts`, { headers: authHeaders() });
+  return (await checkResponse(res)).json();
+}
+
+export async function getTransactions(): Promise<BankTransactionsResult> {
+  const res = await fetch(`${API_URL}/bank/transactions`, { headers: authHeaders() });
   return (await checkResponse(res)).json();
 }
 
