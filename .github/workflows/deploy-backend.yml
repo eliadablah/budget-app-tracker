@@ -1,0 +1,90 @@
+# .github/workflows/deploy-backend.yml
+# What: ships the backend automatically. When a change to backend/ lands on
+#       main, this builds the Docker image, uploads it to ECR, and points
+#       the Lambda at it - the same steps that used to be typed by hand.
+#
+# How it gets into AWS: no stored keys. It swaps GitHub's signed ID card
+# for temporary credentials (OIDC - see infra/github_oidc.tf), and that
+# role can only push this image and update this one function.
+
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  # Lets you run it by hand from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  id-token: write # required to request the OIDC ID card
+  contents: read
+
+# If two pushes land close together, finish the first deploy before
+# starting the second, instead of racing.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  # Not secrets - an account number and resource names. Values come from
+  # `terraform output` in infra/.
+  DEPLOY_ROLE_ARN: arn:aws:iam::277820847315:role/budget-app-dev-github-deploy
+  ECR_REPOSITORY: budget-app-dev
+  LAMBDA_FUNCTION: budget-app-dev
+
+jobs:
+  deploy:
+    name: Build, push, update Lambda
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Compile first, outside Docker: a type error fails here in seconds
+      # with a readable message, before anything is built or uploaded.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run build
+        working-directory: backend
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Two tags for the same image: the commit SHA (a permanent record of
+      # exactly which code this is) and "latest" (what Terraform's Lambda
+      # definition points at). --provenance/--sbom=false because Lambda
+      # rejects images carrying that extra metadata.
+      - name: Build and push image
+        working-directory: backend
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          docker build --provenance=false --sbom=false \
+            -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      # Pushing ":latest" doesn't change what the Lambda runs - it has to
+      # be told to re-read the tag. Then wait until it reports ready.
+      - name: Point the Lambda at the new image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION" \
+            --image-uri "$IMAGE:latest" \
+            --query LastUpdateStatus --output text
+          aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION"

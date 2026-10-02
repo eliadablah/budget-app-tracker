@@ -4,6 +4,29 @@ Newest date first.
 
 ## 2026-10-02
 
+### Ops - Alarms, email alerts, and a health dashboard
+
+- Added `infra/monitoring.tf`: SNS topic `budget-app-dev-alerts` with an email subscription (address from the new `alert_email` variable, set in gitignored `infra/terraform.tfvars`).
+- Two log metric filters on the Lambda log group count the backend's own `"Unhandled error"` and `"Plaid error"` log lines, since handled errors never show in the built-in Lambda `Errors` metric.
+- Six alarms, all notifying the topic on trip and on recovery: unhandled backend errors, Plaid errors (3+ in 5 min), Lambda crashes, Lambda throttles, Lambda p95 duration over 75% of its timeout (2 periods), API 5xx (3+ in 5 min).
+- CloudWatch dashboard `budget-app-dev` (alarm status, API traffic and errors, backend errors, backend speed, DynamoDB usage); new `dashboard_url` output.
+- Verification: `terraform validate` passes; `terraform apply` run (11 added, 0 changed, 0 destroyed). The email subscription stays pending until the confirmation link is clicked. No alarm has been deliberately tripped to test delivery.
+
+### Ops - GitHub Actions CI and automatic deploys (OIDC)
+
+- Added `infra/github_oidc.tf`: GitHub OIDC provider and role `budget-app-dev-github-deploy`, assumable only by this repo's `main` branch. Permissions limited to pushing the backend image, updating the one Lambda's code, writing the frontend bucket, and invalidating the one CloudFront distribution. No AWS keys are stored in GitHub. Terraform changes stay manual.
+- Added `.github/workflows/ci.yml` (every push and PR: backend compile, frontend type-check and build, `terraform fmt -check` and `validate`), `deploy-backend.yml` and `deploy-frontend.yml` (on pushes to `main` touching their folder, or run by hand).
+- New outputs: `github_deploy_role_arn`, `frontend_distribution_id`.
+- Verification: `terraform apply` run (3 added). The workflows themselves have not run yet - they first execute when pushed to GitHub.
+
+### Bank - Transactions feed, accounts as tiles
+
+- Backend: `GET /bank/transactions` (`bank/listBankTransactions.ts`) returns transactions from every connected bank since the 1st of last month, newest first, via Plaid `/transactions/get` with paging. Each carries `countsAsSpending` (false for money in, transfers out, and credit card payments). A bank that fails is named in `failedBanks` instead of failing the request. Extracted `bank/listBankConnections.ts`, now shared with accounts.
+- Infra: added the `GET /bank/transactions` route.
+- Frontend: `components/transactions/` (`TransactionsCard`, `TransactionRow`) and `hooks/useTransactions.ts`; the list shows 10 at a time with "Show more". "Spent this month" tile is now live (sum of `countsAsSpending` transactions dated this month).
+- Frontend: accounts are laid out side by side as tiles (`.account-list` grid) instead of a vertical list, with the same hover pop as the headline tiles. `Card` gained a `wide` prop; Accounts and Recent transactions span the full dashboard width, and the connect button moved to the Accounts card header.
+- Verification: `tsc` (both projects) and `vite build` pass; image pushed, Lambda updated, `terraform apply` run (1 added), frontend uploaded and cache invalidated. Invoked the Lambda directly for the real user: HTTP 200, 32 Sandbox transactions, 22 counted as spending, no failed banks. The Sandbox data ends 2026-09-26, so "Spent this month" reads $0 for October. Layout not yet checked in a browser by me.
+
 ### Frontend - Headline tiles always fit, hover pop
 
 - `StatTile` passes its number's length to CSS (`--chars`); `.stat-tile__value` sizes itself from the tile's width (container query units) so a long number shrinks to fit instead of overflowing. Fixes "$62,589.00" spilling out of the "Cash in accounts" tile.

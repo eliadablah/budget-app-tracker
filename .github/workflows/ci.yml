@@ -1,0 +1,62 @@
+# .github/workflows/ci.yml
+# What: the safety check. Runs on every push and every pull request, and
+#       fails loudly if the code doesn't compile or the Terraform is
+#       malformed. It never touches AWS - it only checks.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Read-only: this workflow has no reason to change anything in the repo.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend compiles
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      # npm ci installs exactly what package-lock.json says - same versions
+      # every time, unlike npm install.
+      - run: npm ci
+      - run: npm run build
+
+  frontend:
+    name: Frontend compiles and builds
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # "build" type-checks first (tsc), then bundles (vite build).
+      - run: npm run build
+
+  terraform:
+    name: Terraform is formatted and valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      # -backend=false: validate the code without connecting to the real
+      # state bucket, so this needs no AWS credentials at all.
+      - run: terraform -chdir=infra init -backend=false
+      - run: terraform -chdir=infra validate

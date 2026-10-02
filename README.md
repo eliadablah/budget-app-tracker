@@ -22,6 +22,7 @@ bootstrap/   One-time stack that creates the S3 bucket holding Terraform state
 infra/       Main stack: DynamoDB, Lambda, API Gateway, Cognito, S3 + CloudFront, domain
 backend/     TypeScript Lambda code and its Dockerfile
 frontend/    React + Vite + TypeScript dashboard (built to static files)
+.github/     GitHub Actions: checks on every push, automatic deploys from main
 docs/        Notes (later)
 ```
 
@@ -37,6 +38,19 @@ docs/        Notes (later)
 8. Frontend (S3 + CloudFront)
 9. GitHub Actions with OIDC
 10. EventBridge, Parameter Store, Plaid Sandbox
+
+## Deploying
+
+Pushing to `main` deploys code automatically through GitHub Actions:
+
+- a change under `backend/` builds the Docker image, pushes it to ECR, and updates the Lambda
+- a change under `frontend/` builds the site, syncs it to S3, and clears the CloudFront cache
+
+GitHub gets into AWS through OIDC (`infra/github_oidc.tf`), so no AWS keys are stored in GitHub. Infrastructure changes (`infra/`) are not automatic: run `terraform plan`, read it, then `terraform apply`.
+
+## Monitoring
+
+`infra/monitoring.tf` creates alarms that email `alert_email` (set in the gitignored `infra/terraform.tfvars`) and a CloudWatch dashboard. `terraform output dashboard_url` prints the link.
 
 ## Plaid keys (one-time setup)
 

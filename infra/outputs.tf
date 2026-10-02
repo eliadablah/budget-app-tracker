@@ -47,6 +47,21 @@ output "cognito_app_client_id" {
   value       = aws_cognito_user_pool_client.frontend.id
 }
 
+output "dashboard_url" {
+  description = "Link to the CloudWatch dashboard showing the app's health."
+  value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards/dashboard/${aws_cloudwatch_dashboard.app.dashboard_name}"
+}
+
+output "github_deploy_role_arn" {
+  description = "ARN of the role GitHub Actions assumes to deploy (not a secret). Referenced in .github/workflows/."
+  value       = aws_iam_role.github_deploy.arn
+}
+
+output "frontend_distribution_id" {
+  description = "ID of the CloudFront distribution. Used when clearing its cache after a frontend upload."
+  value       = aws_cloudfront_distribution.frontend.id
+}
+
 output "frontend_bucket_name" {
   description = "Name of the S3 bucket holding the built frontend. Used by `aws s3 sync` to upload it."
   value       = aws_s3_bucket.frontend.id

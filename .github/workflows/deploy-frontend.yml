@@ -1,0 +1,77 @@
+# .github/workflows/deploy-frontend.yml
+# What: ships the website automatically. When a change to frontend/ lands
+#       on main, this builds the site, uploads it to the S3 bucket, and
+#       clears CloudFront's cache so the new version shows up right away.
+#
+# How it gets into AWS: no stored keys - same OIDC role as the backend
+# deploy (see infra/github_oidc.tf), which can only write to this one
+# bucket and clear this one distribution's cache.
+
+name: Deploy frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+  # Lets you run it by hand from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  id-token: write # required to request the OIDC ID card
+  contents: read
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  # Not secrets - resource names and IDs from `terraform output` in infra/.
+  DEPLOY_ROLE_ARN: arn:aws:iam::277820847315:role/budget-app-dev-github-deploy
+  FRONTEND_BUCKET: budget-app-frontend-277820847315
+  DISTRIBUTION_ID: E20V46S8IQQ4ZB
+
+jobs:
+  deploy:
+    name: Build, upload, clear cache
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+
+      # These get baked into the built JavaScript, which every visitor's
+      # browser downloads - so they are public by nature, not secrets.
+      # Locally the same three come from frontend/.env.local.
+      - name: Build
+        env:
+          VITE_API_URL: https://al63on17ya.execute-api.us-east-1.amazonaws.com/
+          VITE_AWS_REGION: us-east-1
+          VITE_COGNITO_CLIENT_ID: dmjc3ea5cn680ge8cdort56v3
+        run: npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --delete removes files from the bucket that are no longer in the
+      # build (old, renamed JS/CSS bundles), so stale files don't pile up.
+      - name: Upload to S3
+        run: aws s3 sync dist "s3://$FRONTEND_BUCKET" --delete
+
+      - name: Clear the CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths "/*" \
+            --query Invalidation.Status --output text
