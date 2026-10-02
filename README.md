@@ -19,7 +19,9 @@ Lambdas run outside a VPC on purpose. That avoids a NAT Gateway (about $33/month
 
 ```
 bootstrap/   One-time stack that creates the S3 bucket holding Terraform state
-infra/       Main stack (added in the next steps)
+infra/       Main stack: DynamoDB, Lambda, API Gateway, Cognito, S3 + CloudFront, domain
+backend/     TypeScript Lambda code and its Dockerfile
+frontend/    React + Vite + TypeScript dashboard (built to static files)
 docs/        Notes (later)
 ```
 
@@ -35,6 +37,17 @@ docs/        Notes (later)
 8. Frontend (S3 + CloudFront)
 9. GitHub Actions with OIDC
 10. EventBridge, Parameter Store, Plaid Sandbox
+
+## Plaid keys (one-time setup)
+
+The backend reads the Plaid keys from Parameter Store at runtime. Store them by hand - each command prompts for the value, so it never lands in shell history:
+
+```powershell
+aws ssm put-parameter --name "/budget-app/dev/plaid/client-id" --type SecureString --overwrite --region us-east-1 --value (Read-Host "Paste your Plaid client ID")
+aws ssm put-parameter --name "/budget-app/dev/plaid/secret" --type SecureString --overwrite --region us-east-1 --value (Read-Host "Paste your Plaid secret")
+```
+
+Use the Sandbox secret while `plaid_env` is `sandbox` (the default in `infra/variables.tf`).
 
 ## Rules of the road
 

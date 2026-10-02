@@ -1,0 +1,553 @@
+/* src/styles/index.css
+   What: global styling for the whole app. A bold navy dashboard with a warm
+   peach accent and green for "done" - modeled on the budget-dashboard look
+   the app is aiming for.
+   Colors are defined as CSS custom properties by role, not scattered as raw
+   hex values, so the whole theme can be re-themed from one place later.
+   Text always uses the text tokens; accent and success are for marks
+   (buttons, fills, checkmarks), never for body copy. Chart series colors
+   are NOT defined here yet - they get added, and validated, when the first
+   real chart is built. */
+
+:root {
+  --page-bg: #0e1a2b;
+  --surface: #16243a;
+  --surface-raised: #1e304b;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.28);
+  --text-primary: #f6f8fb;
+  --text-secondary: #b9c5d6;
+  --text-muted: #8696ad;
+  --accent: #f6a67e;
+  --accent-hover: #f9b995;
+  --on-accent: #2a1508;
+  --success: #7fd3a2;
+  --on-success: #0b2a19;
+  --critical: #ff9a9a;
+  --radius-card: 18px;
+  --radius-control: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page-bg);
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+/* Keyboard users get a clear ring on whatever is focused. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Dashboard layout --- */
+
+.dashboard {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* --- Header --- */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.app-header__eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.app-header__month {
+  margin: 0.15rem 0 0;
+  font-size: clamp(2.25rem, 6vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.app-header__date {
+  margin: 0.4rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* --- Buttons --- */
+
+.button {
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.button--primary {
+  padding: 0.7rem 1.25rem;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.button--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button--block {
+  width: 100%;
+}
+
+.button--quiet {
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--border-strong);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.button--quiet:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.icon-button:hover {
+  background: var(--surface-raised);
+  color: var(--critical);
+}
+
+.icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* --- Headline numbers --- */
+
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1.25rem 1.4rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  /* Lets the number inside measure itself against this tile's width
+     (the "cqi" unit below). */
+  container-type: inline-size;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+/* Hover "pop": the tile under the pointer grows toward you and its edge
+   lights up. z-index keeps the grown tile on top of its neighbors. */
+.stat-tile:hover {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.1);
+  border-color: var(--accent);
+  background: var(--surface-raised);
+}
+
+.stat-tile__label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Always fits: the size is 2.4rem at most, but never more than the tile's
+   width divided across the number's characters (--chars is set by
+   StatTile.tsx; 0.62 is roughly how wide one bold digit is, in ems). */
+.stat-tile__value {
+  font-size: min(2.4rem, calc(100cqi / (var(--chars, 6) * 0.62)));
+  white-space: nowrap;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-tile__hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* A tile with no data yet steps back so the live ones stand out. */
+.stat-tile--empty {
+  background: var(--surface);
+}
+
+.stat-tile--empty .stat-tile__value {
+  color: var(--text-muted);
+}
+
+/* --- Cards --- */
+
+.card {
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+/* Cards get a gentler version of the tile pop - a small lift - since they
+   hold things you click and type in, which shouldn't jump around. */
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-strong);
+}
+
+/* People who've asked their device for less motion get the highlight
+   without the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .stat-tile:hover,
+  .card:hover {
+    transform: none;
+  }
+}
+
+.card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.card__count {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* --- Progress bar --- */
+
+.progress {
+  height: 8px;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.progress__fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--success);
+  transition: width 0.25s ease;
+}
+
+/* --- To-do list --- */
+
+.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+.todo-item__label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0;
+  cursor: pointer;
+}
+
+.todo-item__title {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.todo-item--done .todo-item__title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Custom checkbox: the real <input> restyled, so it stays keyboard- and
+   screen-reader-friendly. The check mark is drawn with two borders of a
+   rotated box. */
+.check {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  margin: 0;
+  border: 2px solid var(--border-strong);
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.check:hover {
+  border-color: var(--success);
+}
+
+.check:checked {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.check:checked::after {
+  content: "";
+  width: 0.35rem;
+  height: 0.7rem;
+  border: solid var(--on-success);
+  border-width: 0 2.5px 2.5px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+/* --- Accounts --- */
+
+.bank-group {
+  margin-bottom: 1.25rem;
+}
+
+.bank-group__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bank-group__name {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-row:last-child {
+  border-bottom: none;
+}
+
+.account-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.account-row__name {
+  overflow-wrap: anywhere;
+}
+
+.account-row__details {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.account-row__balance {
+  flex: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Add-todo form --- */
+
+.todo-form {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.todo-form input,
+.login-form__field input {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.todo-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-form input::placeholder {
+  color: var(--text-muted);
+}
+
+.todo-form input:focus,
+.login-form__field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* --- Login form --- */
+
+.login-form {
+  max-width: 380px;
+  margin: 12vh auto 0;
+  padding: 2.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.login-form h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.app__subtitle {
+  margin: 0.25rem 0 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.login-form__field {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.login-form__field span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.login-form button {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.8rem;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.login-form button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.login-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Messages --- */
+
+.empty-state,
+.muted {
+  margin: 0 0 1.25rem;
+  color: var(--text-muted);
+}
+
+.card > .muted:last-child {
+  margin-bottom: 0;
+}
+
+.error {
+  margin: 0 0 1rem;
+  color: var(--critical);
+  font-size: 0.9rem;
+}
