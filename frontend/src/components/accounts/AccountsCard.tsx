@@ -1,7 +1,7 @@
 // src/components/accounts/AccountsCard.tsx
-// What: the accounts section of the dashboard - every connected bank with
-// its accounts laid out side by side as tiles, plus the button that
-// connects another bank. Spans the full width of the dashboard.
+// What: the accounts section of the dashboard - your total balance, then
+// every connected bank with its accounts laid out side by side as tiles,
+// plus the button that connects another bank. Spans the full width of the dashboard.
 // Holds no data of its own; everything comes from the useBanks hook via
 // the dashboard.
 //
@@ -15,6 +15,7 @@
 
 import type { Bank } from "../../types/bank";
 import { Card } from "../ui";
+import { AccountsSummary } from "./AccountsSummary";
 import { BankGroup } from "./BankGroup";
 
 interface AccountsCardProps {
@@ -64,7 +65,12 @@ export function AccountsCard({
       ) : banks.length === 0 ? (
         <p className="muted">Connect a bank to see your balances here.</p>
       ) : (
-        banks.map((bank) => <BankGroup key={bank.id} bank={bank} onRemove={handleRemove} />)
+        <>
+          <AccountsSummary banks={banks} />
+          {banks.map((bank) => (
+            <BankGroup key={bank.id} bank={bank} onRemove={handleRemove} />
+          ))}
+        </>
       )}
     </Card>
   );

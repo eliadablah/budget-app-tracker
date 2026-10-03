@@ -1,7 +1,8 @@
 # infra/reminders.tf
-# What: everything that sends to-do reminder emails on a schedule.
+# What: everything that sends notification emails on a schedule: to-do and
+# bill reminders, budget alerts, and the daily summary.
 #   1. A second Lambda, from the SAME Docker image as the API, but started at
-#      a different function (reminders/sendDueReminders.handler).
+#      a different function (reminders/scheduler.handler).
 #   2. Its own IAM role - it can read due reminders and send email from our
 #      domain, nothing else.
 #   3. An EventBridge Scheduler schedule that wakes it every 15 minutes.
@@ -50,12 +51,35 @@ data "aws_iam_policy_document" "reminders" {
     resources = ["${aws_dynamodb_table.app.arn}/index/reminders-due"]
   }
 
-  # GetItem reads settings; UpdateItem claims reminders and counts texts.
+  # GetItem/Query read settings, to-dos, bills and the budget; UpdateItem
+  # claims reminders and counts emails; PutItem writes the "already sent"
+  # markers; Scan finds who has notification settings (once an hour).
+  # No DeleteItem: the scheduler never removes anything.
   statement {
-    sid       = "ClaimRemindersAndReadSettings"
-    effect    = "Allow"
-    actions   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+    sid    = "ReadDataAndTrackWhatWasSent"
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+    ]
     resources = [aws_dynamodb_table.app.arn]
+  }
+
+  # Budget alerts and the daily summary need this month's spending, which
+  # comes from the bank through Plaid. READ only: the scheduler can use the
+  # Plaid keys and bank tokens but can never change or delete them.
+  statement {
+    sid     = "ReadPlaidKeysAndBankTokens"
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "${local.plaid_param_arn}/client-id",
+      "${local.plaid_param_arn}/secret",
+      "${local.plaid_param_arn}/items/*",
+    ]
   }
 
   # Send only from our own domain. While the account is in the SES sandbox,
@@ -68,7 +92,7 @@ data "aws_iam_policy_document" "reminders" {
       effect  = "Allow"
       actions = ["ses:SendEmail"]
       resources = [
-        aws_sesv2_email_identity.domain.arn,
+        local.email_domain_arn,
         "arn:aws:ses:${var.aws_region}:${data.aws_caller_identity.current.account_id}:identity/${var.reminder_email}",
       ]
     }
@@ -96,18 +120,22 @@ resource "aws_lambda_function" "reminders" {
 
   # Same image as the API; this line picks a different starting function.
   image_config {
-    command = ["reminders/sendDueReminders.handler"]
+    command = ["reminders/scheduler.handler"]
   }
 
   memory_size = 256
-  timeout     = 60
+  # 2 minutes: the hourly budget check waits on Plaid for each connected bank.
+  timeout = 120
 
   environment {
     variables = {
-      TABLE_NAME     = aws_dynamodb_table.app.name
-      REMINDER_EMAIL = var.reminder_email
-      REMINDER_FROM  = local.reminder_from
-      TIME_ZONE      = var.reminder_time_zone
+      TABLE_NAME = aws_dynamodb_table.app.name
+      # For budget alerts and the daily summary (this month's spending).
+      PLAID_ENV          = var.plaid_env
+      PLAID_PARAM_PREFIX = local.plaid_param_prefix
+      REMINDER_EMAIL     = var.reminder_email
+      REMINDER_FROM      = local.reminder_from
+      TIME_ZONE          = var.reminder_time_zone
       # Link at the bottom of each email, back to the to-do list.
       APP_URL = "https://${var.frontend_domain_name}"
     }

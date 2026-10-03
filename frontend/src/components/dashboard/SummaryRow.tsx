@@ -1,15 +1,19 @@
 // src/components/dashboard/SummaryRow.tsx
-// What: the row of headline numbers across the top of the dashboard. Cash,
-// spending, and to-dos are live; the budget and bills tiles show a dash
-// until those features exist to fill them in.
+// What: the row of headline numbers across the top of the dashboard: cash,
+// spending, what's left of the budget, bills still owed, and open to-dos.
 //
 // Props:
 //   todos        - the to-do list, for the "To-dos open" tile
 //   banks        - connected banks, for the "Cash in accounts" tile
 //   transactions - recent transactions, for the "Spent this month" tile
+//   limits       - the monthly budget limits, for the "Left to spend" tile
+//   bills        - the bills, for the "Bills still due" tile
 
+import { owedThisMonth } from "../../lib/billMath";
+import { buildBudget } from "../../lib/budgetMath";
 import { formatMoneyWhole } from "../../lib/formatMoney";
 import type { Bank, BankTransaction } from "../../types/bank";
+import type { Bill } from "../../types/bill";
 import type { Todo } from "../../types/todo";
 import { StatTile } from "../ui";
 
@@ -17,16 +21,11 @@ interface SummaryRowProps {
   todos: Todo[];
   banks: Bank[];
   transactions: BankTransaction[];
+  limits: Record<string, number>;
+  bills: Bill[];
 }
 
-// This month as "YYYY-MM" in the viewer's own time zone - transaction dates
-// start with the same thing, so a simple prefix check finds this month's.
-function currentMonthPrefix(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-export function SummaryRow({ todos, banks, transactions }: SummaryRowProps) {
+export function SummaryRow({ todos, banks, transactions, limits, bills }: SummaryRowProps) {
   const open = todos.filter((t) => !t.done).length;
   const hasBanks = banks.length > 0;
 
@@ -37,13 +36,13 @@ export function SummaryRow({ todos, banks, transactions }: SummaryRowProps) {
     .filter((account) => account.type === "depository");
   const cash = cashAccounts.reduce((sum, account) => sum + (account.balance ?? 0), 0);
 
-  // Purchases and bills dated this month. Transfers between your own
-  // accounts and credit card payments are already excluded by the backend
-  // (countsAsSpending).
-  const month = currentMonthPrefix();
-  const spent = transactions
-    .filter((t) => t.countsAsSpending && t.date.startsWith(month))
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Spending and budget use the same sums as the Budget card, so the two
+  // can never disagree.
+  const budget = buildBudget(transactions, limits);
+  const hasBudget = budget.totalLimit > 0;
+  const left = budget.totalLimit - budget.totalSpent;
+
+  const unpaidBills = bills.filter((b) => !b.paidAt);
 
   return (
     <div className="summary-row">
@@ -54,11 +53,23 @@ export function SummaryRow({ todos, banks, transactions }: SummaryRowProps) {
       />
       <StatTile
         label="Spent this month"
-        value={hasBanks ? formatMoneyWhole(spent) : undefined}
+        value={hasBanks ? formatMoneyWhole(budget.totalSpent) : undefined}
         hint={hasBanks ? "From your connected banks" : "Connect a bank"}
       />
-      <StatTile label="Left to spend" hint="Needs your budget" />
-      <StatTile label="Bills still due" hint="Needs your bills" />
+      <StatTile
+        label="Left to spend"
+        value={hasBudget ? formatMoneyWhole(left) : undefined}
+        hint={hasBudget ? (left < 0 ? "Over your budget" : "Of this month's budget") : "Set your budget"}
+      />
+      <StatTile
+        label="Bills still due"
+        value={unpaidBills.length > 0 ? formatMoneyWhole(owedThisMonth(bills)) : undefined}
+        hint={
+          unpaidBills.length > 0
+            ? `${unpaidBills.length} unpaid ${unpaidBills.length === 1 ? "bill" : "bills"}`
+            : "Add your bills"
+        }
+      />
       <StatTile
         label="To-dos open"
         value={String(open)}

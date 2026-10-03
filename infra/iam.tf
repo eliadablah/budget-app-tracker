@@ -50,6 +50,39 @@ data "aws_iam_policy_document" "lambda_dynamodb_access" {
     ]
     resources = [aws_dynamodb_table.app.arn]
   }
+
+  # The Notifications card lists the next reminders by reading the same
+  # index the sender uses. An index has its own ARN, separate from the table.
+  statement {
+    sid       = "ReadUpcomingReminders"
+    effect    = "Allow"
+    actions   = ["dynamodb:Query"]
+    resources = ["${aws_dynamodb_table.app.arn}/index/reminders-due"]
+  }
+}
+
+# --- Email: the API may send the "test email" from the Notifications card ---
+# Same narrow permission as the reminders Lambda: from our domain, to the one
+# verified inbox. Nothing is granted while reminder_email is empty.
+data "aws_iam_policy_document" "lambda_send_email" {
+  count = local.email_ready ? 1 : 0
+
+  statement {
+    sid     = "SendTestEmailOnly"
+    effect  = "Allow"
+    actions = ["ses:SendEmail"]
+    resources = [
+      local.email_domain_arn,
+      "arn:aws:ses:${var.aws_region}:${data.aws_caller_identity.current.account_id}:identity/${var.reminder_email}",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_send_email" {
+  count  = local.email_ready ? 1 : 0
+  name   = "${var.project_name}-${var.environment}-lambda-send-email"
+  role   = aws_iam_role.lambda_exec.id
+  policy = data.aws_iam_policy_document.lambda_send_email[0].json
 }
 
 resource "aws_iam_role_policy" "lambda_dynamodb_access" {
