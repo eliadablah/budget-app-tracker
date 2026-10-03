@@ -111,7 +111,8 @@ data "aws_iam_policy_document" "github_deploy" {
       "lambda:GetFunctionConfiguration",
       "lambda:UpdateFunctionCode",
     ]
-    resources = [aws_lambda_function.backend.arn]
+    # Both functions run the same image, so the pipeline updates both.
+    resources = [aws_lambda_function.backend.arn, aws_lambda_function.reminders.arn]
   }
 
   statement {

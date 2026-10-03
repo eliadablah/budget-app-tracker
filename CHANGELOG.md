@@ -2,6 +2,20 @@
 
 Newest date first.
 
+## 2026-10-03
+
+### Reminders - Email reminders for to-dos
+
+- To-dos can carry an optional reminder: a date and time, plus an optional email 24 hours earlier. Set when adding a to-do ("Email me a reminder"), cancelled from the bell on the to-do, and cancelled automatically when the to-do is checked off.
+- New Notifications card: shows the address reminders go to and an on/off switch, which stays off until turned on.
+- New routes: `PUT`/`DELETE /todos/{id}/reminder` and `GET`/`PATCH /settings/notifications`. `POST /todos` accepts optional `remindAt` and `remindDayBefore`.
+- New Lambda `budget-app-dev-reminders` (same image, `reminders/sendDueReminders.handler`) run every 15 minutes by EventBridge Scheduler. It reads a new sparse DynamoDB index `reminders-due`, claims each reminder with a conditional update so it is never sent twice, and emails it through Amazon SES. Logs hold counts only, never addresses or titles.
+- Email is sent from `reminders@eliadablah.com`: new SES domain identity with DKIM records in Route 53 (`infra/email.tf`). The recipient comes from the new gitignored `reminder_email` variable.
+- Safety: at most 10 reminder emails per user per day, no scheduler retries, an error alarm to the existing alerts topic, and least-privilege IAM (send only from the domain, to the one verified address). The schedule stays off until `reminder_schedule_enabled` is set to true.
+- The deploy pipeline now updates both Lambdas, and the deploy role may update the new one.
+- Texting was built first and its infrastructure applied once (15 added, 4 changed), then replaced with email before deploying, because US toll-free text registration requires a registered business. The texting routes and permissions are removed by the next apply.
+- Verification: backend and frontend `tsc` pass; `terraform validate` passes (with the provider's existing `range_key` deprecation warning, now also on the new index); the `reminders-due` index is ACTIVE.
+
 ## 2026-10-02
 
 ### Ops - Fix first CI and deploy runs

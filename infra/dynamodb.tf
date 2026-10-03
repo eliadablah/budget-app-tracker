@@ -33,6 +33,26 @@ resource "aws_dynamodb_table" "app" {
     type = "S"
   }
 
+  attribute {
+    name = "reminderStatus"
+    type = "S"
+  }
+
+  attribute {
+    name = "nextReminderAt"
+    type = "S"
+  }
+
+  # "Which reminders are due now?" in one cheap query. Sparse on purpose:
+  # only items that HAVE reminderStatus appear here, so it holds just the
+  # handful of to-dos with a text still waiting - never the whole table.
+  global_secondary_index {
+    name            = "reminders-due"
+    hash_key        = "reminderStatus"
+    range_key       = "nextReminderAt"
+    projection_type = "ALL"
+  }
+
   # Lets you restore the table to any second within the last 35 days -
   # cheap insurance against an accidental delete.
   point_in_time_recovery {

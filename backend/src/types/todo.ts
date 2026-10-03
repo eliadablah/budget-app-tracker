@@ -11,4 +11,16 @@ export interface Todo {
   title: string;
   done: boolean;
   createdAt: string; // ISO 8601 timestamp
+
+  // --- Reminder (all optional - most to-dos have none) ---
+  remindAt?: string; // ISO 8601 UTC - when the "it's time" text goes out
+  remindDayBefore?: boolean; // also text 24 hours earlier
+  reminderSentAt?: string; // when the most recent reminder text went out
+
+  // Internal bookkeeping, only present while a text is still waiting.
+  // These two fields are the keys of the "reminders-due" index
+  // (infra/dynamodb.tf). Removing them takes the to-do out of the index,
+  // which is how a reminder is marked "nothing left to send".
+  reminderStatus?: "PENDING";
+  nextReminderAt?: string; // ISO 8601 UTC - when the next text is due
 }

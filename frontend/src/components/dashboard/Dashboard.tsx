@@ -1,7 +1,7 @@
 // src/components/dashboard/Dashboard.tsx
 // What: the one page you see after logging in - headline numbers on top,
-// then a card for each part of the app (bills, budget, to-dos, accounts,
-// transactions).
+// then a card for each part of the app (bills, budget, to-dos, notification
+// settings, accounts, transactions).
 // It arranges the sections and hands each one its data; the sections
 // themselves do the rendering.
 //
@@ -10,12 +10,14 @@
 //                      user logs out), so App.tsx shows the login screen
 
 import { useBanks } from "../../hooks/useBanks";
+import { useNotificationSettings } from "../../hooks/useNotificationSettings";
 import { useTodos } from "../../hooks/useTodos";
 import { useTransactions } from "../../hooks/useTransactions";
 import { logout } from "../../lib/auth";
 import { AccountsCard } from "../accounts/AccountsCard";
 import { TransactionsCard } from "../transactions/TransactionsCard";
 import { AppHeader } from "../layout/AppHeader";
+import { NotificationsCard } from "../settings/NotificationsCard";
 import { TodoCard } from "../todos/TodoCard";
 import { ComingSoonCard } from "./ComingSoonCard";
 import { SummaryRow } from "./SummaryRow";
@@ -25,7 +27,9 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onSessionExpired }: DashboardProps) {
-  const { todos, loading, error, addTodo, toggleTodo, removeTodo } = useTodos(onSessionExpired);
+  const { todos, loading, error, addTodo, toggleTodo, removeTodo, clearReminder } =
+    useTodos(onSessionExpired);
+  const notifications = useNotificationSettings(onSessionExpired);
   const banks = useBanks(onSessionExpired);
   const transactions = useTransactions(banks.banks.length, onSessionExpired);
 
@@ -56,6 +60,14 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           onAdd={addTodo}
           onToggle={toggleTodo}
           onDelete={removeTodo}
+          onClearReminder={clearReminder}
+        />
+        <NotificationsCard
+          settings={notifications.settings}
+          loading={notifications.loading}
+          error={notifications.error}
+          busy={notifications.busy}
+          onToggleEmail={notifications.toggleEmail}
         />
         <AccountsCard
           banks={banks.banks}

@@ -36,3 +36,27 @@ variable "frontend_domain_name" {
   type        = string
   default     = "budgettracker.eliadablah.com"
 }
+
+variable "reminder_email" {
+  description = "Inbox that to-do reminder emails go to. Must be verified in SES while the account is in the SES sandbox. Leave empty to keep email reminders (and their schedule) off. Set it in terraform.tfvars."
+  type        = string
+  default     = ""
+}
+
+variable "reminder_schedule_enabled" {
+  description = "Turns on the 15-minute reminder schedule. Keep false until the reminder code has been deployed (a push to main) and SES shows the email domain as verified - otherwise every run fails and trips the alarm."
+  type        = bool
+  default     = false
+}
+
+variable "email_domain" {
+  description = "Domain reminder emails are sent from (reminders@<this>). Must be a Route 53 hosted zone in this account, so the DKIM records can be added automatically."
+  type        = string
+  default     = "eliadablah.com"
+}
+
+variable "reminder_time_zone" {
+  description = "Time zone used to write times inside reminder texts."
+  type        = string
+  default     = "America/Chicago"
+}

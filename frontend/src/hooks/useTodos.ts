@@ -3,13 +3,22 @@
 // checking off, and deleting - so components only have to render.
 //
 // Manages: the list itself, a loading flag, and the latest error message.
-// Returns: { todos, loading, error, addTodo, toggleTodo, removeTodo }.
+// Returns: { todos, loading, error, addTodo, toggleTodo, removeTodo,
+//            setReminder, clearReminder }.
 // onSessionExpired is called when the API says the login is no longer valid
 // (a 401), so the parent can show the login screen again.
 
 import { useCallback, useEffect, useState } from "react";
-import { createTodo, deleteTodo, getTodos, updateTodo, UnauthorizedError } from "../lib/api";
-import type { Todo } from "../types/todo";
+import {
+  clearTodoReminder,
+  createTodo,
+  deleteTodo,
+  getTodos,
+  setTodoReminder,
+  updateTodo,
+  UnauthorizedError,
+} from "../lib/api";
+import type { ReminderInput, Todo } from "../types/todo";
 
 export function useTodos(onSessionExpired: () => void) {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -36,10 +45,10 @@ export function useTodos(onSessionExpired: () => void) {
       .finally(() => setLoading(false));
   }, [handleError]);
 
-  async function addTodo(title: string) {
+  async function addTodo(title: string, reminder?: ReminderInput) {
     setError(null);
     try {
-      const newTodo = await createTodo(title);
+      const newTodo = await createTodo(title, reminder);
       setTodos((prev) => [...prev, newTodo]);
     } catch (err) {
       handleError(err, "Couldn't add that to-do. Try again.");
@@ -52,11 +61,17 @@ export function useTodos(onSessionExpired: () => void) {
   async function toggleTodo(todo: Todo) {
     setError(null);
     const done = !todo.done;
-    setTodos((prev) => prev.map((t) => (t.sk === todo.sk ? { ...t, done } : t)));
+    // Checking a to-do off also cancels its waiting reminder (the backend
+    // does the same), so the bell disappears right away.
+    setTodos((prev) =>
+      prev.map((t) =>
+        t.sk === todo.sk ? { ...t, done, ...(done && { nextReminderAt: undefined }) } : t
+      )
+    );
     try {
       await updateTodo(todo.sk, done);
     } catch (err) {
-      setTodos((prev) => prev.map((t) => (t.sk === todo.sk ? { ...t, done: todo.done } : t)));
+      setTodos((prev) => prev.map((t) => (t.sk === todo.sk ? todo : t)));
       handleError(err, "Couldn't update that to-do. Try again.");
     }
   }
@@ -74,5 +89,29 @@ export function useTodos(onSessionExpired: () => void) {
     }
   }
 
-  return { todos, loading, error, addTodo, toggleTodo, removeTodo };
+  // Reminders wait for the server's answer instead of updating first,
+  // because the server works out the exact send time.
+  function replaceTodo(updated: Todo) {
+    setTodos((prev) => prev.map((t) => (t.sk === updated.sk ? updated : t)));
+  }
+
+  async function setReminder(todo: Todo, reminder: ReminderInput) {
+    setError(null);
+    try {
+      replaceTodo(await setTodoReminder(todo.sk, reminder));
+    } catch (err) {
+      handleError(err, "Couldn't set that reminder. Try again.");
+    }
+  }
+
+  async function clearReminder(todo: Todo) {
+    setError(null);
+    try {
+      replaceTodo(await clearTodoReminder(todo.sk));
+    } catch (err) {
+      handleError(err, "Couldn't cancel that reminder. Try again.");
+    }
+  }
+
+  return { todos, loading, error, addTodo, toggleTodo, removeTodo, setReminder, clearReminder };
 }

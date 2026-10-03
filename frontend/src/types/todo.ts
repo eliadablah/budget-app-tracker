@@ -9,4 +9,14 @@ export interface Todo {
   title: string;
   done: boolean;
   createdAt: string;
+  remindAt?: string;
+  remindDayBefore?: boolean;
+  reminderSentAt?: string;
+  nextReminderAt?: string; // present while a text is still waiting
+}
+
+// What the form sends when "Email me a reminder" is ticked.
+export interface ReminderInput {
+  remindAt: string; // ISO 8601
+  remindDayBefore: boolean;
 }

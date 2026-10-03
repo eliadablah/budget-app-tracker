@@ -1,6 +1,8 @@
 // src/todos/updateTodo.ts
 // What: marks one existing to-do as done or not done, and returns the
-// updated item.
+// updated item. Marking it done also cancels any reminder still waiting, by
+// removing the two fields that keep it in the "reminders-due" index.
+// Un-checking it does NOT turn the reminder back on.
 
 import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
@@ -16,7 +18,9 @@ export async function updateTodo(userId: string, sk: string, done: boolean): Pro
         Key: { pk: `USER#${userId}`, sk },
         // "done" is a DynamoDB reserved word, so it has to go through a
         // placeholder name (#done) rather than being written directly.
-        UpdateExpression: "SET #done = :done",
+        UpdateExpression: done
+          ? "SET #done = :done REMOVE reminderStatus, nextReminderAt"
+          : "SET #done = :done",
         ExpressionAttributeNames: { "#done": "done" },
         ExpressionAttributeValues: { ":done": done },
         // Without this, updating an id that doesn't exist would quietly

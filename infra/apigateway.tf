@@ -21,7 +21,7 @@ resource "aws_apigatewayv2_api" "backend" {
   # the local dev server plus the real deployed domain, nothing else.
   cors_configuration {
     allow_origins = ["http://localhost:5173", "https://${var.frontend_domain_name}"]
-    allow_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     # "authorization" added for the Cognito login token (step 7) - every
     # request now carries an Authorization header, which the browser's CORS
     # preflight check will block unless it's explicitly allow-listed here.
@@ -67,6 +67,10 @@ locals {
     "POST /todos",
     "PATCH /todos/{id}",
     "DELETE /todos/{id}",
+    "PUT /todos/{id}/reminder",
+    "DELETE /todos/{id}/reminder",
+    "GET /settings/notifications",
+    "PATCH /settings/notifications",
     "POST /bank/link-token",
     "POST /bank/connections",
     "GET /bank/accounts",

@@ -47,6 +47,11 @@ resource "aws_lambda_function" "backend" {
       # the LOCATION is here - the values themselves never pass through
       # Terraform, so they never end up in its state file.
       PLAID_PARAM_PREFIX = local.plaid_param_prefix
+      # The API only needs these to show where reminders go and to refuse
+      # turning reminders on when email isn't set up - it never sends email
+      # itself (the reminder Lambda does).
+      REMINDER_EMAIL = var.reminder_email
+      REMINDER_FROM  = local.reminder_from
     }
   }
 

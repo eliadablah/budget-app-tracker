@@ -7,17 +7,20 @@
 //   todo     - the to-do to show
 //   onToggle - called when the checkbox is clicked
 //   onDelete - called when the delete button is clicked
+//   onClearReminder - called when the reminder's x is clicked
 
 import type { Todo } from "../../types/todo";
 import { TrashIcon } from "../ui";
+import { ReminderBadge } from "./ReminderBadge";
 
 interface TodoItemProps {
   todo: Todo;
   onToggle: (todo: Todo) => void;
   onDelete: (todo: Todo) => void;
+  onClearReminder: (todo: Todo) => void;
 }
 
-export function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
+export function TodoItem({ todo, onToggle, onDelete, onClearReminder }: TodoItemProps) {
   return (
     <li className={`todo-item${todo.done ? " todo-item--done" : ""}`}>
       {/* Wrapping in a <label> makes the whole title clickable, not just the
@@ -31,6 +34,11 @@ export function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
         />
         <span className="todo-item__title">{todo.title}</span>
       </label>
+      {/* Only while a text is still waiting - nextReminderAt disappears once
+          the last one is sent or the to-do is checked off. */}
+      {todo.remindAt && todo.nextReminderAt && (
+        <ReminderBadge remindAt={todo.remindAt} onClear={() => onClearReminder(todo)} />
+      )}
       <button
         type="button"
         className="icon-button"

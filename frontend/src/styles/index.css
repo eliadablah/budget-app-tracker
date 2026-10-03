@@ -521,12 +521,20 @@ body {
 
 /* --- Add-todo form --- */
 
+/* The form stacks two rows: title + Add, then the reminder options. */
 .todo-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.todo-form__row {
   display: flex;
   gap: 0.6rem;
 }
 
-.todo-form input,
+/* :not(.check) keeps these text-box styles off the round checkboxes,
+   which have their own look (see .check above). */
+.todo-form input:not(.check),
 .login-form__field input {
   width: 100%;
   padding: 0.7rem 0.85rem;
@@ -537,7 +545,7 @@ body {
   font: inherit;
 }
 
-.todo-form input {
+.todo-form__row input {
   flex: 1;
   min-width: 0;
 }
@@ -546,10 +554,75 @@ body {
   color: var(--text-muted);
 }
 
-.todo-form input:focus,
+.todo-form input:not(.check):focus,
 .login-form__field input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* --- Reminder options (under the add-todo form) --- */
+
+.reminder-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.reminder-fields__toggle,
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.reminder-fields__details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reminder-fields__details input[type="datetime-local"] {
+  width: auto;
+  /* Makes the browser's own calendar icon light on the dark background */
+  color-scheme: dark;
+}
+
+/* --- Reminder bell on a to-do --- */
+
+.reminder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.reminder-badge__clear {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
+.reminder-badge__clear:hover {
+  color: var(--text-primary);
+}
+
+/* --- Notifications card --- */
+
+.notifications-card__address {
+  margin: 0 0 1rem;
+  overflow-wrap: anywhere; /* long email addresses wrap instead of overflowing */
 }
 
 /* --- Login form --- */

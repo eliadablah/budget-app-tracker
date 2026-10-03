@@ -13,10 +13,17 @@ import { removeBank } from "./bank/removeBank";
 import { validateBankId, validateInstitutionName, validatePublicToken } from "./bank/validateBank";
 import { HttpError, json, noContent, parseJsonBody } from "./lib/http";
 import { PlaidError } from "./lib/plaid";
+import { EmailNotConfiguredError } from "./lib/email";
+import { getNotificationSettings } from "./settings/notificationSettingsStore";
+import { updateNotificationSettings } from "./settings/updateNotificationSettings";
+import { validateEmailEnabled } from "./settings/validateSettings";
+import { clearTodoReminder } from "./todos/clearTodoReminder";
 import { createTodo } from "./todos/createTodo";
 import { deleteTodo } from "./todos/deleteTodo";
 import { listTodos } from "./todos/listTodos";
+import { setTodoReminder } from "./todos/setTodoReminder";
 import { updateTodo } from "./todos/updateTodo";
+import { validateOptionalReminder, validateReminder } from "./todos/validateReminder";
 import { validateDone, validateTitle, validateTodoId } from "./todos/validateTodo";
 
 export async function handler(
@@ -39,7 +46,10 @@ export async function handler(
 
       case "POST /todos": {
         const body = parseJsonBody(event.body);
-        return json(201, await createTodo(userId, validateTitle(body.title)));
+        return json(
+          201,
+          await createTodo(userId, validateTitle(body.title), validateOptionalReminder(body))
+        );
       }
 
       case "PATCH /todos/{id}": {
@@ -52,6 +62,29 @@ export async function handler(
         const sk = validateTodoId(event.pathParameters?.id);
         await deleteTodo(userId, sk);
         return noContent();
+      }
+
+      case "PUT /todos/{id}/reminder": {
+        const sk = validateTodoId(event.pathParameters?.id);
+        const body = parseJsonBody(event.body);
+        return json(200, await setTodoReminder(userId, sk, validateReminder(body)));
+      }
+
+      case "DELETE /todos/{id}/reminder": {
+        const sk = validateTodoId(event.pathParameters?.id);
+        return json(200, await clearTodoReminder(userId, sk));
+      }
+
+      case "GET /settings/notifications": {
+        return json(200, await getNotificationSettings(userId));
+      }
+
+      case "PATCH /settings/notifications": {
+        const body = parseJsonBody(event.body);
+        return json(
+          200,
+          await updateNotificationSettings(userId, validateEmailEnabled(body.emailEnabled))
+        );
       }
 
       case "POST /bank/link-token": {
@@ -97,6 +130,12 @@ export async function handler(
     // written to be shown to the caller.
     if (err instanceof HttpError) {
       return json(err.statusCode, { message: err.message });
+    }
+
+    // Email isn't set up in Terraform. 503 = "temporarily unavailable" - a
+    // clear message instead of a confusing 500.
+    if (err instanceof EmailNotConfiguredError) {
+      return json(503, { message: "Email reminders aren't set up yet" });
     }
 
     // Anything else: log details for yourself in CloudWatch, but never leak

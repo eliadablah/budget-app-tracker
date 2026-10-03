@@ -35,6 +35,7 @@ env:
   DEPLOY_ROLE_ARN: arn:aws:iam::277820847315:role/budget-app-dev-github-deploy
   ECR_REPOSITORY: budget-app-dev
   LAMBDA_FUNCTION: budget-app-dev
+  REMINDERS_FUNCTION: budget-app-dev-reminders
 
 jobs:
   deploy:
@@ -88,3 +89,15 @@ jobs:
             --image-uri "$IMAGE:latest" \
             --query LastUpdateStatus --output text
           aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION"
+
+      # The reminder sender runs the same image (see infra/reminders.tf), so
+      # it needs the same nudge to pick up the new code.
+      - name: Point the reminder sender at the new image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$REMINDERS_FUNCTION" \
+            --image-uri "$IMAGE:latest" \
+            --query LastUpdateStatus --output text
+          aws lambda wait function-updated --function-name "$REMINDERS_FUNCTION"

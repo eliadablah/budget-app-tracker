@@ -63,6 +63,20 @@ aws ssm put-parameter --name "/budget-app/dev/plaid/secret" --type SecureString 
 
 Use the Sandbox secret while `plaid_env` is `sandbox` (the default in `infra/variables.tf`).
 
+## Email reminders
+
+To-dos can email a reminder at a chosen time, and optionally the day before. The sender is a second Lambda (`infra/reminders.tf`) that EventBridge Scheduler runs every 15 minutes. Emails come from `reminders@eliadablah.com` through Amazon SES, signed with DKIM (`infra/email.tf`) so inboxes trust them.
+
+Setup:
+
+1. Set `reminder_email` in the gitignored `infra/terraform.tfvars`. While the AWS account is in the SES sandbox, that address must be verified in SES.
+2. `terraform plan`, then `terraform apply`. This creates the SES domain identity and its three DKIM records in Route 53.
+3. Push to `main` so the pipeline deploys the reminder code to both Lambdas.
+4. Once SES shows the domain as verified, set `reminder_schedule_enabled = true`, then plan and apply again to turn the schedule on.
+5. Turn on "Email reminders" on the Notifications card.
+
+Limits built in: at most 10 reminder emails per user per day, and nothing is sent until the switch on the Notifications card is on.
+
 ## Rules of the road
 
 - Never commit `.tfstate`, `.env`, keys, or access tokens.

@@ -5,7 +5,8 @@
 // UnauthorizedError to send the user back to the login screen.
 
 import type { Bank, BankTransactionsResult } from "../types/bank";
-import type { Todo } from "../types/todo";
+import type { NotificationSettings } from "../types/settings";
+import type { ReminderInput, Todo } from "../types/todo";
 import { getIdToken, logout } from "./auth";
 
 // Trailing slash removed so paths can always be written as `${API_URL}/todos`
@@ -48,11 +49,11 @@ export async function getTodos(): Promise<Todo[]> {
   return (await checkResponse(res)).json();
 }
 
-export async function createTodo(title: string): Promise<Todo> {
+export async function createTodo(title: string, reminder?: ReminderInput): Promise<Todo> {
   const res = await fetch(`${API_URL}/todos`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, ...reminder }),
   });
   return (await checkResponse(res)).json();
 }
@@ -73,6 +74,41 @@ export async function deleteTodo(sk: string): Promise<void> {
   });
   // 204 No Content - there is no body to read on success.
   await checkResponse(res);
+}
+
+// --- Reminders ---
+
+export async function setTodoReminder(sk: string, reminder: ReminderInput): Promise<Todo> {
+  const res = await fetch(`${todoUrl(sk)}/reminder`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(reminder),
+  });
+  return (await checkResponse(res)).json();
+}
+
+export async function clearTodoReminder(sk: string): Promise<Todo> {
+  const res = await fetch(`${todoUrl(sk)}/reminder`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return (await checkResponse(res)).json();
+}
+
+// --- Notification settings ---
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const res = await fetch(`${API_URL}/settings/notifications`, { headers: authHeaders() });
+  return (await checkResponse(res)).json();
+}
+
+export async function setEmailEnabled(emailEnabled: boolean): Promise<NotificationSettings> {
+  const res = await fetch(`${API_URL}/settings/notifications`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ emailEnabled }),
+  });
+  return (await checkResponse(res)).json();
 }
 
 // --- Bank connections ---
