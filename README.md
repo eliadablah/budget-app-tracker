@@ -39,14 +39,45 @@ docs/        Notes (later)
 9. GitHub Actions with OIDC
 10. EventBridge, Parameter Store, Plaid Sandbox
 
+## Environments and branches
+
+There are two copies of the app, each with its own database, login, API and website:
+
+| Environment | Git branch | Address | Terraform workspace |
+|---|---|---|---|
+| Live (named `dev` in AWS, a name that predates staging) | `main` | budgettracker.eliadablah.com | `default` |
+| Staging (the test copy) | `develop` | staging-budgettracker.eliadablah.com | `staging` |
+
+The everyday flow:
+
+1. Branch off `develop` for each piece of work (`git switch -c feature/<name> develop`) and try it locally with `npm run dev`.
+2. Merge the feature branch into `develop` and push. That deploys to staging. Test it there.
+3. Open a pull request from `develop` into `main`, review the changes, and merge. That deploys to the live app.
+
 ## Deploying
 
-Pushing to `main` deploys code automatically through GitHub Actions:
+Pushing deploys code automatically through GitHub Actions:
 
-- a change under `backend/` builds the Docker image, pushes it to ECR, and updates the Lambda
+- `main` -> the live app (`deploy-backend.yml`, `deploy-frontend.yml`)
+- `develop` -> staging (`deploy-staging-backend.yml`, `deploy-staging-frontend.yml`)
+- a change under `backend/` builds the Docker image, pushes it to ECR, and updates both Lambdas
 - a change under `frontend/` builds the site, syncs it to S3, and clears the CloudFront cache
 
-GitHub gets into AWS through OIDC (`infra/github_oidc.tf`), so no AWS keys are stored in GitHub. Infrastructure changes (`infra/`) are not automatic: run `terraform plan`, read it, then `terraform apply`.
+GitHub gets into AWS through OIDC (`infra/github_oidc.tf`), so no AWS keys are stored in GitHub. Each environment's deploy role trusts only its own branch, so a push to `develop` can never deploy to the live app.
+
+Infrastructure changes (`infra/`) are not automatic: run `terraform plan`, read it, then `terraform apply`. Pick the environment first:
+
+```powershell
+# Live app
+terraform workspace select default
+terraform plan
+
+# Staging
+terraform workspace select staging
+terraform plan -var-file=staging.tfvars
+```
+
+`infra/workspace_guard.tf` stops a plan if the workspace and the settings don't match, so staging settings can never be applied to the live app by accident. Things AWS allows only once per account (the GitHub OIDC provider and the SES email domain) are owned by the live stack; staging uses them (`manage_shared_account_resources = false`).
 
 ## Monitoring
 
@@ -61,7 +92,14 @@ aws ssm put-parameter --name "/budget-app/dev/plaid/client-id" --type SecureStri
 aws ssm put-parameter --name "/budget-app/dev/plaid/secret" --type SecureString --overwrite --region us-east-1 --value (Read-Host "Paste your Plaid secret")
 ```
 
-Use the Sandbox secret while `plaid_env` is `sandbox` (the default in `infra/variables.tf`).
+Use the Sandbox secret while `plaid_env` is `sandbox` (the default in `infra/variables.tf`). Staging reads its own copy, so run the same two commands with `/budget-app/staging/plaid/...` in place of `/budget-app/dev/plaid/...`.
+
+## Bills and budget
+
+- **Bills** have a name, amount, due date and time, and an optional email reminder. Pay one in parts or in full; what's left goes down with each payment. A bill can repeat monthly with the same amount (next month's is created when it's paid off) or with an amount that changes (next month's is created empty).
+- **Payment suggestions**: when a bank transaction looks like a payment toward a bill, the Bills card asks before counting it.
+- **Budget** uses the bank's own spending categories. Set a monthly amount per category; the card shows a chart, each category against its limit, and warnings at 80% and over 100%.
+- **Notifications** has a switch for each kind of email: to-do reminders, bill reminders, budget alerts, and an 8 AM daily summary. All are off until switched on.
 
 ## Email reminders
 

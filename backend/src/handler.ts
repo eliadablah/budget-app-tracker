@@ -1,8 +1,8 @@
 // src/handler.ts
 // What: the single entry point AWS Lambda calls on every request. Reads the
 // incoming API Gateway event and routes it to the right function - this
-// file stays thin on purpose; the real logic lives in src/todos/* and
-// src/bank/*.
+// file stays thin on purpose; the real logic lives in src/todos/*,
+// src/bills/*, src/budget/*, src/settings/* and src/bank/*.
 
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from "aws-lambda";
 import { connectBank } from "./bank/connectBank";
@@ -11,12 +11,28 @@ import { listBankAccounts } from "./bank/listBankAccounts";
 import { listBankTransactions } from "./bank/listBankTransactions";
 import { removeBank } from "./bank/removeBank";
 import { validateBankId, validateInstitutionName, validatePublicToken } from "./bank/validateBank";
+import { listBills } from "./bills/billStore";
+import { createBill } from "./bills/createBill";
+import { deleteBill } from "./bills/deleteBill";
+import { dismissSuggestion } from "./bills/dismissSuggestion";
+import { recordBillPayment } from "./bills/recordBillPayment";
+import { updateBill } from "./bills/updateBill";
+import {
+  validateBillId,
+  validateBillInput,
+  validateOptionalTransactionId,
+  validatePaymentAmount,
+  validateTransactionId,
+} from "./bills/validateBill";
+import { getBudget, saveBudgetLimits } from "./budget/budgetStore";
+import { validateBudgetLimits } from "./budget/validateBudget";
+import { EmailNotConfiguredError } from "./lib/email";
 import { HttpError, json, noContent, parseJsonBody } from "./lib/http";
 import { PlaidError } from "./lib/plaid";
-import { EmailNotConfiguredError } from "./lib/email";
 import { getNotificationSettings } from "./settings/notificationSettingsStore";
+import { sendTestEmail } from "./settings/sendTestEmail";
 import { updateNotificationSettings } from "./settings/updateNotificationSettings";
-import { validateEmailEnabled } from "./settings/validateSettings";
+import { validateSettingsChanges } from "./settings/validateSettings";
 import { clearTodoReminder } from "./todos/clearTodoReminder";
 import { createTodo } from "./todos/createTodo";
 import { deleteTodo } from "./todos/deleteTodo";
@@ -81,10 +97,62 @@ export async function handler(
 
       case "PATCH /settings/notifications": {
         const body = parseJsonBody(event.body);
+        return json(200, await updateNotificationSettings(userId, validateSettingsChanges(body)));
+      }
+
+      case "POST /settings/notifications/test": {
+        await sendTestEmail(userId);
+        return noContent();
+      }
+
+      case "GET /bills": {
+        return json(200, await listBills(userId));
+      }
+
+      case "POST /bills": {
+        const body = parseJsonBody(event.body);
+        return json(201, await createBill(userId, validateBillInput(body)));
+      }
+
+      case "PATCH /bills/{id}": {
+        const sk = validateBillId(event.pathParameters?.id);
+        const body = parseJsonBody(event.body);
+        return json(200, await updateBill(userId, sk, validateBillInput(body)));
+      }
+
+      case "DELETE /bills/{id}": {
+        const sk = validateBillId(event.pathParameters?.id);
+        await deleteBill(userId, sk);
+        return noContent();
+      }
+
+      case "POST /bills/{id}/payments": {
+        const sk = validateBillId(event.pathParameters?.id);
+        const body = parseJsonBody(event.body);
         return json(
-          200,
-          await updateNotificationSettings(userId, validateEmailEnabled(body.emailEnabled))
+          201,
+          await recordBillPayment(
+            userId,
+            sk,
+            validatePaymentAmount(body.amount),
+            validateOptionalTransactionId(body.transactionId)
+          )
         );
+      }
+
+      case "POST /bills/suggestions/dismiss": {
+        const body = parseJsonBody(event.body);
+        await dismissSuggestion(userId, validateTransactionId(body.transactionId));
+        return noContent();
+      }
+
+      case "GET /budget": {
+        return json(200, await getBudget(userId));
+      }
+
+      case "PUT /budget": {
+        const body = parseJsonBody(event.body);
+        return json(200, await saveBudgetLimits(userId, validateBudgetLimits(body.limits)));
       }
 
       case "POST /bank/link-token": {

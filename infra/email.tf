@@ -15,9 +15,16 @@
 
 locals {
   reminder_from = "reminders@${var.email_domain}"
+  # Built from its parts (not read from the resource) so staging, which
+  # doesn't own the domain, can still name it in its email permission.
+  email_domain_arn = "arn:aws:ses:${var.aws_region}:${data.aws_caller_identity.current.account_id}:identity/${var.email_domain}"
 }
 
+# A domain can be registered in SES only once per account, so only the live
+# stack creates it (count = 1). Staging sends from the same domain.
 resource "aws_sesv2_email_identity" "domain" {
+  count = var.manage_shared_account_resources ? 1 : 0
+
   email_identity = var.email_domain
 
   tags = {
@@ -33,11 +40,19 @@ resource "aws_sesv2_email_identity" "domain" {
 # SES checks these on its own and marks the domain verified, usually within
 # minutes (it can take up to 72 hours).
 resource "aws_route53_record" "ses_dkim" {
-  count = 3
+  count = var.manage_shared_account_resources ? 3 : 0
 
   zone_id = data.aws_route53_zone.main.zone_id
-  name    = "${aws_sesv2_email_identity.domain.dkim_signing_attributes[0].tokens[count.index]}._domainkey.${var.email_domain}"
+  name    = "${aws_sesv2_email_identity.domain[0].dkim_signing_attributes[0].tokens[count.index]}._domainkey.${var.email_domain}"
   type    = "CNAME"
   ttl     = 600
-  records = ["${aws_sesv2_email_identity.domain.dkim_signing_attributes[0].tokens[count.index]}.dkim.amazonses.com"]
+  records = ["${aws_sesv2_email_identity.domain[0].dkim_signing_attributes[0].tokens[count.index]}.dkim.amazonses.com"]
+}
+
+# Same rename-in-code-only note as in github_oidc.tf: "domain" became
+# "domain[0]" when count was added, and this keeps Terraform from deleting
+# and recreating the live email domain.
+moved {
+  from = aws_sesv2_email_identity.domain
+  to   = aws_sesv2_email_identity.domain[0]
 }

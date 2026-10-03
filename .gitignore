@@ -14,6 +14,11 @@ crash.*.log
 # Variable files often hold real values. Use defaults or environment variables instead.
 *.tfvars
 *.tfvars.json
+# Exception: staging.tfvars holds only names and switches, nothing private,
+# and the staging environment can't be rebuilt without it.
+!infra/staging.tfvars
+# Saved plans can contain real values too.
+*.tfplan
 # Local overrides
 override.tf
 override.tf.json

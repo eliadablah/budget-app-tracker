@@ -5,7 +5,8 @@
 // UnauthorizedError to send the user back to the login screen.
 
 import type { Bank, BankTransactionsResult } from "../types/bank";
-import type { NotificationSettings } from "../types/settings";
+import type { Bill, BillInput, BillsResult, PaymentResult } from "../types/bill";
+import type { NotificationKind, NotificationSettings } from "../types/settings";
 import type { ReminderInput, Todo } from "../types/todo";
 import { getIdToken, logout } from "./auth";
 
@@ -102,13 +103,104 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
   return (await checkResponse(res)).json();
 }
 
-export async function setEmailEnabled(emailEnabled: boolean): Promise<NotificationSettings> {
+// Flips one switch, e.g. setNotification("billReminders", true).
+export async function setNotification(
+  kind: NotificationKind,
+  on: boolean
+): Promise<NotificationSettings> {
   const res = await fetch(`${API_URL}/settings/notifications`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ emailEnabled }),
+    body: JSON.stringify({ [kind]: on }),
   });
   return (await checkResponse(res)).json();
+}
+
+export async function sendTestEmail(): Promise<void> {
+  const res = await fetch(`${API_URL}/settings/notifications/test`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  await checkResponse(res);
+}
+
+// --- Bills ---
+
+// A bill's address is /bills/<its sk>, encoded for the same reason as a to-do's.
+function billUrl(sk: string): string {
+  return `${API_URL}/bills/${encodeURIComponent(sk)}`;
+}
+
+export async function getBills(): Promise<BillsResult> {
+  const res = await fetch(`${API_URL}/bills`, { headers: authHeaders() });
+  return (await checkResponse(res)).json();
+}
+
+export async function createBill(input: BillInput): Promise<Bill> {
+  const res = await fetch(`${API_URL}/bills`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(input),
+  });
+  return (await checkResponse(res)).json();
+}
+
+export async function updateBill(sk: string, input: BillInput): Promise<Bill> {
+  const res = await fetch(billUrl(sk), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(input),
+  });
+  return (await checkResponse(res)).json();
+}
+
+export async function deleteBill(sk: string): Promise<void> {
+  const res = await fetch(billUrl(sk), { method: "DELETE", headers: authHeaders() });
+  await checkResponse(res);
+}
+
+// transactionId is set when the payment is a bank transaction you confirmed.
+export async function payBill(
+  sk: string,
+  amount: number,
+  transactionId?: string
+): Promise<PaymentResult> {
+  const res = await fetch(`${billUrl(sk)}/payments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ amount, transactionId }),
+  });
+  return (await checkResponse(res)).json();
+}
+
+export async function dismissBillSuggestion(transactionId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/bills/suggestions/dismiss`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ transactionId }),
+  });
+  await checkResponse(res);
+}
+
+// --- Budget ---
+
+// limits is category -> monthly amount, e.g. { FOOD_AND_DRINK: 500 }.
+export async function getBudgetLimits(): Promise<Record<string, number>> {
+  const res = await fetch(`${API_URL}/budget`, { headers: authHeaders() });
+  const data: { limits: Record<string, number> } = await (await checkResponse(res)).json();
+  return data.limits;
+}
+
+export async function saveBudgetLimits(
+  limits: Record<string, number>
+): Promise<Record<string, number>> {
+  const res = await fetch(`${API_URL}/budget`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ limits }),
+  });
+  const data: { limits: Record<string, number> } = await (await checkResponse(res)).json();
+  return data.limits;
 }
 
 // --- Bank connections ---

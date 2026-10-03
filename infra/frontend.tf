@@ -13,8 +13,20 @@
 
 data "aws_caller_identity" "current" {}
 
+locals {
+  # The live bucket was named before staging existed, without the
+  # environment in it. A bucket can't be renamed (only deleted and remade),
+  # so the live app keeps its original name and every other environment gets
+  # its own name with the environment included.
+  frontend_bucket_name = (
+    var.environment == "dev"
+    ? "${var.project_name}-frontend-${data.aws_caller_identity.current.account_id}"
+    : "${var.project_name}-${var.environment}-frontend-${data.aws_caller_identity.current.account_id}"
+  )
+}
+
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.project_name}-frontend-${data.aws_caller_identity.current.account_id}"
+  bucket = local.frontend_bucket_name
 }
 
 # Block every form of public access on the bucket - CloudFront reaches it

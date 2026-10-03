@@ -4,6 +4,29 @@ Newest date first.
 
 ## 2026-10-03
 
+### Dashboard - Bills, budget, fuller notifications (staging only)
+
+- Bills: add, edit and delete bills with a due date and time. A bill can be paid in parts (each payment lowers what's left) or in full. Repeating bills: `monthly_fixed` (same amount, next month's is created when this one is paid off) and `monthly_variable` (next month's is created with no amount, to fill in). Bills share the to-do reminder fields, so the same sender emails them.
+- Payment suggestions: a bank transaction whose description shares a word with an unpaid bill is offered as "Is this a bill payment?". Nothing is counted until confirmed; dismissed ones are remembered.
+- Budget: monthly limits per bank category (Plaid's primary categories), a donut chart of this month's spending, each category against its limit, warning tags at 80% and over 100%, and the month's total in the card's corner.
+- Notifications: separate switches for to-do reminders, bill reminders, budget alerts and a daily summary; a "Coming up next" list; today's count against the daily limit; a "Send me a test email" button. The old single switch still counts for to-do reminders.
+- Scheduler: the reminders Lambda's entry point is now `reminders/scheduler.handler`. Every 15 minutes it sends due to-do and bill reminders; once an hour it checks budget alerts (80% and 100%, once each per category per month); in the 8 AM hour it sends the daily summary (once per day). The old entry point forwards to the new one.
+- To-dos are grouped (Today, This week, Later, Anytime, Done) with filter chips. Accounts show a total and a cash / savings / owed breakdown. Transactions show this month's money out and in, filter chips, a category tag, and "counted toward <bill>" labels.
+- Layout: three columns on wide screens (Bills, Budget, To-do down the right, Notifications under the first two), one column on narrow screens. The "Coming soon" cards are gone.
+- New routes: `GET`/`POST /bills`, `PATCH`/`DELETE /bills/{id}`, `POST /bills/{id}/payments`, `POST /bills/suggestions/dismiss`, `GET`/`PUT /budget`, `POST /settings/notifications/test`.
+- IAM: the API may query the `reminders-due` index and send the test email; the scheduler may read (never write) the Plaid keys and bank tokens, and may Scan the table once an hour to find who has notifications on.
+- Verification: backend and frontend `tsc` pass; frontend builds; `terraform validate` passes. Staging apply: 10 added, 3 changed, 0 destroyed. Staging's scheduler ran once by hand with no errors. Not yet verified: the new screens and buttons in a browser (needs a login), and no bank is connected in staging. Not applied to the live app.
+
+### Ops - Staging environment and branch-based deploys
+
+- New staging copy of the whole app (own database, login pool, API, both Lambdas, image store, website and HTTPS certificate) at `staging-budgettracker.eliadablah.com`, built from the same Terraform code in a separate `staging` workspace with `infra/staging.tfvars`.
+- Branch flow: `develop` deploys to staging (`deploy-staging-backend.yml`, `deploy-staging-frontend.yml`); `main` deploys to the live app. Each environment's deploy role trusts only its own branch (`deploy_branch`).
+- `infra/workspace_guard.tf` stops any plan whose workspace and environment don't match, so staging settings can't be applied to the live app.
+- Account-wide singletons (GitHub OIDC provider, SES email domain) are owned by the live stack and looked up by staging (`manage_shared_account_resources`). Their Terraform addresses gained `[0]`; `moved` blocks keep the live resources in place.
+- The live bucket keeps its original name; other environments get `budget-app-<env>-frontend-<account>`.
+- `.gitignore`: `infra/staging.tfvars` is tracked (no private values); saved `*.tfplan` files are ignored.
+- Live apply: 1 added (the guard), 1 changed (reminder schedule enabled), 0 destroyed; the two `moved` resources were not recreated. Staging apply: ECR first, image pushed, then 59 added.
+
 ### Reminders - Email reminders for to-dos
 
 - To-dos can carry an optional reminder: a date and time, plus an optional email 24 hours earlier. Set when adding a to-do ("Email me a reminder"), cancelled from the bell on the to-do, and cancelled automatically when the to-do is checked off.

@@ -1,0 +1,94 @@
+# .github/workflows/deploy-staging-backend.yml
+# What: the staging copy of deploy-backend.yml. When a change to backend/
+#       lands on develop, this builds the Docker image, uploads it to the
+#       STAGING image store, and points both STAGING Lambdas at it.
+#
+# Why a separate file: the live deploy only listens to main and only has the
+# live role; this one only listens to develop and only has the staging role
+# (infra/github_oidc.tf with deploy_branch = "develop"). Neither can reach
+# the other environment, even by mistake.
+
+name: Deploy staging backend
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-staging-backend.yml"
+  # Lets you run it by hand from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  id-token: write # required to request the OIDC ID card
+  contents: read
+
+concurrency:
+  group: deploy-staging-backend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  # Not secrets - resource names from `terraform output` in the staging workspace.
+  DEPLOY_ROLE_ARN: arn:aws:iam::277820847315:role/budget-app-staging-github-deploy
+  ECR_REPOSITORY: budget-app-staging
+  LAMBDA_FUNCTION: budget-app-staging
+  REMINDERS_FUNCTION: budget-app-staging-reminders
+
+jobs:
+  deploy:
+    name: Build, push, update staging Lambdas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Compile first, outside Docker: a type error fails here in seconds.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run build
+        working-directory: backend
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Same two tags as the live deploy: the commit SHA (a permanent record)
+      # and "latest" (what the staging Lambdas point at).
+      - name: Build and push image
+        working-directory: backend
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          docker build --provenance=false --sbom=false \
+            -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Point the staging API Lambda at the new image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION" \
+            --image-uri "$IMAGE:latest" \
+            --query LastUpdateStatus --output text
+          aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION"
+
+      - name: Point the staging reminder sender at the new image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$REMINDERS_FUNCTION" \
+            --image-uri "$IMAGE:latest" \
+            --query LastUpdateStatus --output text
+          aws lambda wait function-updated --function-name "$REMINDERS_FUNCTION"

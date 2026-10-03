@@ -15,9 +15,21 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Environment name (e.g. dev, prod). Used in resource naming and tags."
+  description = "Environment name. \"dev\" is the live app (the name predates staging; renaming it would rebuild everything). \"staging\" is the test copy. Must match the Terraform workspace - see workspace_guard.tf."
   type        = string
   default     = "dev"
+}
+
+variable "deploy_branch" {
+  description = "The one Git branch whose GitHub Actions runs may deploy to this environment: main for the live app, develop for staging."
+  type        = string
+  default     = "main"
+}
+
+variable "manage_shared_account_resources" {
+  description = "True in exactly ONE environment (the live one). Some things can exist only once per AWS account - the GitHub OIDC provider and the SES email domain - so the live stack owns them and staging just uses them."
+  type        = bool
+  default     = true
 }
 
 variable "plaid_env" {

@@ -1,15 +1,18 @@
 // src/components/transactions/TransactionRow.tsx
 // What: one transaction on a line - the date, where the money went (or
-// came from), which bank, and the amount.
+// came from), which bank, its category, and the amount.
 //
 // Props:
 //   transaction - the transaction to show
+//   billName    - the bill this was counted toward, if any
 
+import { categoryLabel } from "../../lib/budgetCategories";
 import { formatMoney } from "../../lib/formatMoney";
 import type { BankTransaction } from "../../types/bank";
 
 interface TransactionRowProps {
   transaction: BankTransaction;
+  billName?: string;
 }
 
 // "2026-10-02" -> "Oct 2". Built from the parts rather than `new Date(text)`
@@ -23,7 +26,7 @@ function formatDay(date: string): string {
   });
 }
 
-export function TransactionRow({ transaction }: TransactionRowProps) {
+export function TransactionRow({ transaction, billName }: TransactionRowProps) {
   // The bank reports money out as positive. On screen, money out is shown
   // plain and money in gets a "+", which is how statements usually read.
   const moneyIn = transaction.amount < 0;
@@ -37,8 +40,12 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
         <span className="transaction-row__details">
           {transaction.institutionName}
           {transaction.pending && " · Pending"}
+          {billName && <span className="transaction-row__bill">{` · counted toward ${billName}`}</span>}
         </span>
       </div>
+      {transaction.category && (
+        <span className="transaction-row__category">{categoryLabel(transaction.category)}</span>
+      )}
       <span className={`transaction-row__amount${moneyIn ? " transaction-row__amount--in" : ""}`}>
         {moneyIn ? `+${amount}` : amount}
       </span>
