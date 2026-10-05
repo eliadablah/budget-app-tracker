@@ -119,6 +119,16 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.backend.id
   name        = "$default"
   auto_deploy = true
+
+  # A speed limit for the whole API: about 20 requests a second on average,
+  # with short bursts of up to 40 (the dashboard fires several requests at
+  # once when it loads, so the burst has to cover that). Anything faster is
+  # turned away with "429 Too Many Requests" before it reaches the Lambda,
+  # so a flood can't run up a bill or slow the app for the real user.
+  default_route_settings {
+    throttling_rate_limit  = 20
+    throttling_burst_limit = 40
+  }
 }
 
 # API Gateway and Lambda are separate AWS services - even though this API was

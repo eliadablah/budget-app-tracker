@@ -73,6 +73,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     # ID, not something this project defines itself. Good default caching
     # behavior for static files without writing custom cache rules.
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    # Adds the browser security headers to every response (security_headers.tf).
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
   }
 
   # A private S3 bucket replies 403 (not 404) to a missing key. Without this,

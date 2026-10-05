@@ -2,6 +2,19 @@
 
 Newest date first.
 
+## 2026-10-05
+
+### Security - Browser security headers, API rate limit, repo protection
+
+- `infra/security_headers.tf`: a CloudFront response headers policy on the frontend - HSTS (one year), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and a small Content-Security-Policy (`frame-ancestors 'none'; object-src 'none'; base-uri 'self'`). A script-source CSP is deliberately left for later, after testing against the Plaid pop-up.
+- `infra/apigateway.tf`: the API is throttled to 20 requests a second (burst 40); excess requests get a 429 before reaching the Lambda.
+- GitHub: `main` is now a protected branch (pull request required, the three CI checks must pass, applies to admins, no force-push or delete).
+- Verification: `terraform validate` passes. Not yet applied to staging or the live app.
+
+### Docs - Ownership line
+
+- Added "Built and owned by Elikem Adablah" to the README and a footer at the bottom of the dashboard (`components/layout/AppFooter.tsx`).
+
 ## 2026-10-03
 
 ### Dashboard - Bills, budget, fuller notifications (staging only)

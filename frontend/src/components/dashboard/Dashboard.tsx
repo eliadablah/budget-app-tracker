@@ -25,6 +25,7 @@ import { countedTowardBills, suggestBillPayments } from "../../lib/matchBillPaym
 import { AccountsCard } from "../accounts/AccountsCard";
 import { BillsCard } from "../bills/BillsCard";
 import { BudgetCard } from "../budget/BudgetCard";
+import { AppFooter } from "../layout/AppFooter";
 import { AppHeader } from "../layout/AppHeader";
 import { NotificationsCard } from "../settings/NotificationsCard";
 import { TodoCard } from "../todos/TodoCard";
@@ -129,6 +130,8 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           hasBanks={banks.banks.length > 0}
         />
       </div>
+
+      <AppFooter />
     </main>
   );
 }
