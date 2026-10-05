@@ -99,6 +99,15 @@ body {
   }
 }
 
+/* --- Footer --- */
+
+.app-footer {
+  margin-top: 2.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
 /* --- Header --- */
 
 .app-header {

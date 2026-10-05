@@ -1,5 +1,7 @@
 # Budget App Tracker
 
+Built and owned by **Elikem Adablah** · [cv.eliadablah.com](https://cv.eliadablah.com) · © 2026, all rights reserved.
+
 A personal to-do list and budget tracker built on AWS, as a hands-on way to practice Terraform, Docker, and GitHub Actions together.
 
 Single user (me). Real bank data comes last, and only through Plaid's Sandbox first.
